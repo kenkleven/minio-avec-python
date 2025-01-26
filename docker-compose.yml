@@ -1,0 +1,57 @@
+version: "3.9"
+
+x-minio-common: &minio-common
+  image: quay.io/minio/minio:RELEASE.2025-01-20T14-49-07Z
+  command: server --address=":19000" --console-address ":9001" http://minio{1...2}/data{1...2}
+  environment:
+    MINIO_ROOT_USER: minioadmin
+    MINIO_ROOT_PASSWORD: minioadmin
+  expose:
+    - "19000"
+    - "9001"
+  networks:
+    - bigdata
+
+services:
+  minio1:
+    <<: *minio-common
+    hostname: minio1
+    container_name: minio1
+    volumes:
+      - data1-1:/data1
+      - data1-2:/data2
+    restart: always
+
+  minio2:
+    <<: *minio-common
+    hostname: minio2
+    container_name: minio2
+    volumes:
+      - data2-1:/data1
+      - data2-2:/data2
+    restart: always
+
+  nginx_minio:
+    image: nginx:1.19.2-alpine
+    hostname: nginx_minio
+    container_name: nginx_minio
+    volumes:
+      - ./nginx_minio.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "19000:19000"  # Proxy vers l'API MinIO
+      - "9001:9001"    # Proxy vers la console MinIO
+    depends_on:
+      - minio1
+      - minio2
+    networks:
+      - bigdata
+
+networks:
+  bigdata:
+    driver: bridge
+
+volumes:
+  data1-1:
+  data1-2:
+  data2-1:
+  data2-2:
